@@ -123,27 +123,25 @@
     </head>
   <body>
     <div id="top-section">
-      <img id="top-banner" src="{% static 'food_inspectre/img/banner.png' %}">
+      <img id="top-banner" src="{% static 'food_inspectre/css/img/banner.png' %}">
     </div>
 
     <div class="container">
       
-      <form id="form-container" method="get">
+      <form id="form-container" action='/search' method='post'>
+          {% csrf_token %}
+
           <label class="form-label">
-            Search Restaurant (SF only): <input id="restaurant" type="text" name="business_name" placeholder="Enter restaurant name">
+            Search Restaurant (SF only): <input id="search-box" type="text" name="restaurant-name" placeholder="Enter Zip Code / Use current location / Address">
           </label>
           <ul class="validation-error">
             {% for message in messages %}
               {% if 'search-error' in message.tags %}<li id="validation-text">{{ message }}</li>{% endif %}
             {% endfor %}
           </ul>
-          <button class="btn btn-success">Submit</button>
-          <form action="/" method="post">
-            <input class="btn btn-primary" type="submit" value="Clear Results">
-        </form>
-
-     </form>
-        <div id="search-results">
+          <input class="btn btn-success" type="submit" value="Submit">
+      <div id="search-results">
+        <div>
           <p  class="page-font">Business Name:<p id="business_name"></p></p>
           <p  class="page-font">Business Address:<p id="business_address"></p>
           <p  class="page-font">Business Zip Code:<p id="business_zip_code"></p>
@@ -151,14 +149,14 @@
           <p  class="page-font">Inspection Score:<p id="inspection_score"></p>
           <p  class="page-font">Violation Description:<p id="violation_description"></p>
           <p  class="page-font">Risk Category:<p id="risk_category"></p>
+        </div>
       </div>
-    
       <div id="map"></div>
 
 
-    </div>
-    <div id="url-container" data-url="https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="></div>
+        </form>
 
+    </div>
 
 
 	</body>

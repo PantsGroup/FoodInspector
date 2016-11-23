@@ -21,75 +21,46 @@
     <script type="text/javascript" src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
      <script>
          var map;
+         var url = 'https://data.sfgov.org/resource/sipz-fjte.geojson';
          var jsonData;
          var gmarkers=[];
          var markerCluster;
 
 
          $(document).ready(function() {
-             var businessName = $("#business_name");
-             var businessAddress = $("#business_address");
-             var businesZipCode = $("#business_zip_code");
-             var inspectionDate = $("#inspection_date");
-             var inspectionScore = $("#inspection_score");
-             var violationDescription= $("#violation_description");
-             var riskCategory = $("#risk_category");
+                 var businessName = $("#business_name");
+                 var businessAdrress = $("#business_address");
+                 var businesZipCode = $("#business_zip_code");
+                 var inspectionDate = $("#inspection_date");
+                 var inspectionScore = $("#inspection_score");
+                 var violationDescription= $("#violation_description");
+                 var riskCategory = $("#risk_category");
 
-             initMap();
+                // Retrieve our data and plot it
+                $.getJSON(url, function(data) {
+                    jsonData = data;
 
-            // Retrieve our data and plot it
-            $('.btn-success').click(function(event){
-                event.preventDefault();
-                var restaurant = $("#restaurant").val();
-                // var url_data = document.getElementById('url-container');
-                // var base_url = url_data.getAttribute('data-url');
-                var url = "https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="+restaurant;
-                console.log(url);
-                
-                // url_data.setAttribute('data-url', url);
-                // alert(url_data);
-                // var url = "https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="+restaurant;
-
-                // $(this).data('url', url)
-            
-
-                // var url_data = document.getElementById('url-container');
-                // var url = url_data.getAttribute('data-url');  
-                // alert(url);
-
-                // $.getJSON(url, function(data) {
-                
-                $.get(url, function(data) {
-                // jsonData = data;
-                if(data.features[0] == null){
-                    alert("Restaurant not found. Please try again.");
-                }
-                else {
-                for (i = 0; i < data.features.length; i++) {
-                    console.log("hi!!!");
-                    if(data.features[i].geometry!=null){
-
-                    var coords = data.features[i].geometry.coordinates;
-                    var marker = new google.maps.Marker({
-                        position: new google.maps.LatLng(coords[1], coords[0]),
-                        label: data.features[i].properties.business_name ,
-                        name: data.features[i].properties.business_name,
-                        address: data.features[i].properties.business_address,
-                        zip:data.features[i].properties.business_postal_code,
-                        date: data.features[i].properties.inspection_date,
-                        score:data.features[i].properties.inspection_score,
-                        description:data.features[i].properties.violation_description,
-                        riskcategory:data.features[i].properties.risk_category,
-                        map: map
-
-
+                    for (i = 0; i < data.features.length; i++) {
+                        if(data.features[i].geometry!=null){
+                        var coords = data.features[i].geometry.coordinates;
+                        var marker = new google.maps.Marker({
+                            position: new google.maps.LatLng(coords[1], coords[0]),
+                            label: data.features[i].properties.business_name ,
+                            name: data.features[i].properties.business_name,
+                            adrress: data.features[i].properties.business_address,
+                            zip:data.features[i].properties.business_postal_code,
+                            date: data.features[i].properties.inspection_date,
+                            score:data.features[i].properties.inspection_score,
+                            description:data.features[i].properties.violation_description,
+                            riskcategory:data.features[i].properties.risk_category,
+                            map: map
                 });
 
                 google.maps.event.addListener(marker, 'click', function() {
                             businessName.html(marker.name);
-                            businessAddress.html(marker.address);
+                            businessAdrress.html(marker.adrress);
                             businesZipCode.html(marker.zip);
-                            inspectionDate.html(marker.date.split("T")[0]);
+                            inspectionDate.html(marker.date);
                             inspectionScore.html(marker.score);
                             violationDescription.html(marker.description);
                             riskCategory.html(marker.riskcategory);
@@ -98,12 +69,11 @@
                         }
 
                     }
-                     // markerCluster.addMarkers(gmarkers);
-                }
-                }, 'json');
-             });
-            
-            
+                     markerCluster.addMarkers(gmarkers);
+
+                });
+
+             initMap();
             });
 
          function initMap(){
@@ -116,6 +86,7 @@
              map = new google.maps.Map(document.getElementById("map"), mapOptions);
 
              markerCluster = new MarkerClusterer(map, gmarkers,  {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
+
          }
         </script>
 
@@ -123,27 +94,25 @@
     </head>
   <body>
     <div id="top-section">
-      <img id="top-banner" src="{% static 'food_inspectre/img/banner.png' %}">
+      <h1 id="header-text">Food Inspectre</h1>
     </div>
 
     <div class="container">
       
-      <form id="form-container" method="get">
+      <form id="form-container" action='/search' method='post'>
+          {% csrf_token %}
+
           <label class="form-label">
-            Search Restaurant (SF only): <input id="restaurant" type="text" name="business_name" placeholder="Enter restaurant name">
+            Search Restaurant (SF only): <input id="search-box" type="text" name="restaurant-name" placeholder="Enter Zip Code / Use current location / Address">
           </label>
           <ul class="validation-error">
             {% for message in messages %}
               {% if 'search-error' in message.tags %}<li id="validation-text">{{ message }}</li>{% endif %}
             {% endfor %}
           </ul>
-          <button class="btn btn-success">Submit</button>
-          <form action="/" method="post">
-            <input class="btn btn-primary" type="submit" value="Clear Results">
-        </form>
-
-     </form>
-        <div id="search-results">
+          <input class="btn btn-success" type="submit" value="Submit">
+      <div id="search-results">
+        <div>
           <p  class="page-font">Business Name:<p id="business_name"></p></p>
           <p  class="page-font">Business Address:<p id="business_address"></p>
           <p  class="page-font">Business Zip Code:<p id="business_zip_code"></p>
@@ -151,14 +120,14 @@
           <p  class="page-font">Inspection Score:<p id="inspection_score"></p>
           <p  class="page-font">Violation Description:<p id="violation_description"></p>
           <p  class="page-font">Risk Category:<p id="risk_category"></p>
+        </div>
       </div>
-    
       <div id="map"></div>
 
 
-    </div>
-    <div id="url-container" data-url="https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="></div>
+        </form>
 
+    </div>
 
 
 	</body>
