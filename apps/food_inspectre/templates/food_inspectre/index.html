@@ -15,110 +15,240 @@
     <!--<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>-->
 
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
+    <style>
+        .suggestions{
+                position: absolute;
+                width: 400px;
+                background-color: #fff;
+                border: 1px solid #ccc;
+                display: none;
+        }
+        .suggestions ul{ list-style: none; margin: 0; }
+        .suggestions ul li{ padding: 5px; cursor: pointer; }
+        .suggestions ul li:hover{ background-color: #ccc; }
+
+        #inspect{ cursor: pointer; }
+    </style>
     <script type="text/javascript" src='http://code.jquery.com/jquery-1.10.2.min.js'></script>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZlatlx6HqjVqJFhy42kYRTOy_fjLO6gI"></script>
+    <!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZlatlx6HqjVqJFhy42kYRTOy_fjLO6gI"></script>-->
     <script type="text/javascript" src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
      <script>
-         var map;
-         var jsonData;
-         var gmarkers=[];
-         var markerCluster;
-
-
-         $(document).ready(function() {
-             var businessName = $("#business_name");
-             var businessAddress = $("#business_address");
-             var businesZipCode = $("#business_zip_code");
-             var inspectionDate = $("#inspection_date");
-             var inspectionScore = $("#inspection_score");
-             var violationDescription= $("#violation_description");
-             var riskCategory = $("#risk_category");
-
-             initMap();
-
-            // Retrieve our data and plot it
+        function initialize() {
+            var map;
+            var bounds = new google.maps.LatLngBounds();
+            var mapOptions = {
+                mapTypeId: 'roadmap'
+            };
+                            
+            // Display a map on the page
+            map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+            map.setTilt(45);
+            
             $('.btn-success').click(function(event){
                 event.preventDefault();
-                var restaurant = $("#restaurant").val();
-                // var url_data = document.getElementById('url-container');
-                // var base_url = url_data.getAttribute('data-url');
-                var url = "https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="+restaurant;
-                console.log(url);
-                
-                // url_data.setAttribute('data-url', url);
-                // alert(url_data);
-                // var url = "https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="+restaurant;
 
-                // $(this).data('url', url)
-            
-
-                // var url_data = document.getElementById('url-container');
-                // var url = url_data.getAttribute('data-url');  
-                // alert(url);
-
-                // $.getJSON(url, function(data) {
-                
-                $.get(url, function(data) {
-                // jsonData = data;
-                if(data.features[0] == null){
-                    alert("Restaurant not found. Please try again.");
+                // Get Current Location
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(showPosition);
+                } else { 
+                    x.innerHTML = "Geolocation is not supported by this browser.";
                 }
-                else {
-                for (i = 0; i < data.features.length; i++) {
-                    console.log("hi!!!");
-                    if(data.features[i].geometry!=null){
+                function showPosition(position) {
+                    $(".clat").val(position.coords.latitude);
+                    $(".clng").val(position.coords.longitude);
 
-                    var coords = data.features[i].geometry.coordinates;
-                    var marker = new google.maps.Marker({
-                        position: new google.maps.LatLng(coords[1], coords[0]),
-                        label: data.features[i].properties.business_name ,
-                        name: data.features[i].properties.business_name,
-                        address: data.features[i].properties.business_address,
-                        zip:data.features[i].properties.business_postal_code,
-                        date: data.features[i].properties.inspection_date,
-                        score:data.features[i].properties.inspection_score,
-                        description:data.features[i].properties.violation_description,
-                        riskcategory:data.features[i].properties.risk_category,
-                        map: map
+                    //Get User Address Details
+                    var add_url = 'http://maps.googleapis.com/maps/api/geocode/json?latlng='+position.coords.latitude+','+position.coords.longitude+'&sensor=false';
+                    $.get(add_url, function(client) {
+                        console.log(client.results[0]);
 
+                        //Save Client Data In Database
+
+                        var sdata = JSON.stringify({
+                            "business_name": $("#restaurant").val(),
+                            "address": client.results[0].formatted_address,
+                            "latitude": position.coords.latitude,
+                            "longitude": position.coords.longitude,
+                            "latlng": position.coords.latitude+','+position.coords.longitude,
+                        });
+
+                        $.ajax({
+                            url: 'api/v1/address/',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: sdata,
+                            dataType: 'json',
+                            processData: false
+                        })
+                    })
+                }
+
+                var restaurant = $("#restaurant").val();
+                var url = 'https://data.sfgov.org/resource/sipz-fjte.geojson?business_name='+restaurant;
+                //var url = 'https://data.sfgov.org/resource/sipz-fjte.geojson?business_name=Mint';
+
+                $.get(url, function(data) {
+
+                    if(data.features[0] == null){
+                        $("table tbody").html("");
+                        $(".error-result").html("No results found for restaurant's name");
+                        $(".error-result").show();
+                        //alert("Restaurant not found. Please try again.");
+                        return false;
+                    }
+                    $(".error-result").hide();
+                    $("html, body").animate({ scrollTop: $(document).height()-$(window).height() });
+
+                    var rest_result = "";
+
+                    var markers = [];
+                    var infoWindowContent = [];
+                    for (var i = 0; i < data.features.length; i++){
+                        var inspection = data.features[i].properties.inspection_score;
+                        var ficon = "happy.png";
+                        if(inspection<90 && inspection>80){ ficon = "normal.png"; }
+                        if(inspection<80 && inspection>70){ ficon = "sad.png"; }
+                        if(inspection<70){ ficon = "disgusted.png"; }
+                        
+                        var idate = data.features[i].properties.inspection_date;
+                        var name = data.features[i].properties.business_name;
+                        var address = data.features[i].properties.business_address;
+                        var city = data.features[i].properties.business_city;
+                        var zip = data.features[i].properties.business_postal_code;
+                        var description = data.features[i].properties.violation_description
+                        var risk = data.features[i].properties.risk_category;
+                        var mylat = data.features[i].properties.business_latitude;
+                        var mylang = data.features[i].properties.business_longitude;
+
+                        if(inspection==null){ inspection= 'Not Available'; }
+                        if(address==null){ address= 'Not Available'; }
+                        if(zip==null){ zip= 'Not Available'; }
+                        if(inspection==null){ inspection= 'Not Available'; }
+                        if(description==null){ description= 'Not Available'; }
+                        if(risk==null){ risk= 'Not Available'; }
+
+                        rest_result +='<tr><td>'+(i+1)+'</td>'+
+                                    '<td>'+data.features[i].properties.business_name+'</td>'+
+                                    '<td>'+address+'</td>'+
+                                    '<td>'+zip+'</td>'+
+                                    '<td>'+idate.substr(0, 10)+'</td>'+
+                                    '<td>'+inspection+'</td>'+
+                                    '<td><img src="/static/food_inspectre/img/'+ficon+'" title="Score : '+inspection+'" ></td>'+
+                                    '<td>'+description+'</td>'+
+                                    '<td>'+risk+'</td></tr>';
+                    
+                        markers[i] = [name+', '+city, mylat,mylang];
+                        infoWindowContent[i] = ['<div class="info_content">' +'<h3>'+name+'</h3>' +
+                            '<div>City : '+city+'<br /> Address : '+address + '<br /> Postal Code : ' +
+                            zip +'<br /> Inspection Date : '+idate.substr(0, 10) + '<br /> The Latest Inspection Score : <img title="'+inspection+'" src="/static/food_inspectre/img/'+ficon+'"> <br /> Description : ' +
+                            description + '<br /> <a href="https://www.google.com/maps?q='+mylat+','+mylang+'&z=17&hl=en" target="_blank" > <img src="/static/food_inspectre/img/direction.png" style="margin-top:10px; width: 75px;"> </a> </div></div>']
+                    }
+                    $("table tbody").html(rest_result);
+
+                    var infoWindow = new google.maps.InfoWindow(), marker, i;
+                
+                    // Loop through our array of markers & place each one on the map  
+                    for( i = 0; i < markers.length; i++ ) {
+                        var position = new google.maps.LatLng(markers[i][1], markers[i][2]);
+                        bounds.extend(position);
+                        marker = new google.maps.Marker({
+                            position: position,
+                            map: map,
+                            title: markers[i][0]
+                        });
+                        
+                        // Allow each marker to have an info window    
+                        google.maps.event.addListener(marker, 'click', (function(marker, i) {
+                            return function() {
+                                infoWindow.setContent(infoWindowContent[i][0]);
+                                infoWindow.open(map, marker);
+                            }
+                        })(marker, i));
+
+                        // Automatically center the map fitting all markers on the screen
+                        map.fitBounds(bounds);
+                    }
+
+                    //Save Restaurant Data In Database
+
+                    var sdata = JSON.stringify({
+                        "business_name": data.features[0].properties.business_name,
+                        "address": data.features[0].properties.business_address,
+                        "zip_code": data.features[0].properties.business_postal_code,
+                        "inspection_date": data.features[0].properties.inspection_date,
+                        "inspection_score": data.features[0].properties.inspection_score,
+                        "violation": data.features[0].properties.violation_description,
+                        "risk_category": data.features[0].properties.risk_category,
+                    });
+
+                    $.ajax({
+                        url: 'api/v1/restaurant/',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: sdata,
+                        dataType: 'json',
+                        processData: false
+                    })
 
                 });
-
-                google.maps.event.addListener(marker, 'click', function() {
-                            businessName.html(marker.name);
-                            businessAddress.html(marker.address);
-                            businesZipCode.html(marker.zip);
-                            inspectionDate.html(marker.date.split("T")[0]);
-                            inspectionScore.html(marker.score);
-                            violationDescription.html(marker.description);
-                            riskCategory.html(marker.riskcategory);
-                        });
-                            gmarkers.push(marker);
-                        }
-
-                    }
-                     // markerCluster.addMarkers(gmarkers);
-                }
-                }, 'json');
-             });
-            
-            
             });
+                
+            // Display multiple markers on a map
+            
 
-         function initMap(){
+            // Override our map zoom level once our fitBounds function runs (Make sure it only runs once)
+            var boundsListener = google.maps.event.addListener((map), 'bounds_changed', function(event) {
+                this.setZoom(14);
+                google.maps.event.removeListener(boundsListener);
+            });
+            
+        }
 
-             var center = new google.maps.LatLng(37.7749, -122.4194);
-             var mapOptions = {
-                 zoom: 12,
-                 center: center
-             }
-             map = new google.maps.Map(document.getElementById("map"), mapOptions);
-
-             markerCluster = new MarkerClusterer(map, gmarkers,  {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
-         }
+                 
+        </script>
+        <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZlatlx6HqjVqJFhy42kYRTOy_fjLO6gI&callback=initialize">
         </script>
 
+        <script>
+            $(document).ready(function(){
+                $("#restaurant").keyup(function(){
+                    var rest = $(this).val();
+
+                    if(rest.length>0){
+                        var url = "api/v1/restaurant/?business_name__startswith="+rest;
+                        $.get(url, function(data) {
+                            var sugg = "";
+                            for(var j=0; j<data.meta.total_count; j++){
+                                sugg += "<li>"+data.objects[j].business_name+"</li>";
+                            }
+
+                            $(".suggestions ul").html(sugg);
+                            $(".suggestions").show();
+                        });
+                    }else{
+                        $(".suggestions").hide();
+                    }
+                });
+
+                $(document).mouseup(function (e){
+                    var container = $("#restaurant");
+
+                    if (!container.is(e.target) // if the target of the click isn't the container...
+                        && container.has(e.target).length === 0) // ... nor a descendant of the container
+                    {
+                        //container.hide();
+                        $(".suggestions").hide();
+                    }
+                });
+                
+                $("body").on('click','.suggestions ul li',function(){
+                    $("#restaurant").val($(this).text());
+                    $('.btn-success').trigger('click');
+                    $(".suggestions").hide();
+                });
+            });
+        </script>
 
     </head>
   <body>
@@ -128,37 +258,116 @@
 
     <div class="container">
       
-      <form id="form-container" method="get">
-          <label class="form-label">
-            Search Restaurant (SF only): <input id="restaurant" type="text" name="business_name" placeholder="Enter restaurant name">
-          </label>
+      <form id="form-container" method="get" onsubmit="return false;">
+          <label class="form-label"> Search Restaurant (SF only): </label>
+          <div>
+              <input id="restaurant" type="text" name="business_name" placeholder="Enter restaurant name"  autocomplete="off">
+              <div class="suggestions">
+                  <ul></ul>
+              </div>
+          </div>
           <ul class="validation-error">
             {% for message in messages %}
               {% if 'search-error' in message.tags %}<li id="validation-text">{{ message }}</li>{% endif %}
             {% endfor %}
           </ul>
-          <button class="btn btn-success">Submit</button>
+          <button class="btn btn-success" type="submit">Submit</button>
+          <button class="btn btn-primary" onclick="window.location.reload();">Clear Result</button>
           <form action="/" method="post">
-            <input class="btn btn-primary" type="submit" value="Clear Results">
+            <!-- <input class="btn btn-primary" value="Clear Results"> -->
         </form>
 
      </form>
+        
+        <div class="table-responsive" style="margin:20px 0; max-height:400px; overflow-y: scroll; padding: 5px; border: 2px solid #ccc; background: #fff;">
+              <table id="mytable" width="100%" class="table table-striped">
+                  <thead>
+                      <tr>
+                          <th id="srno">No.</th>
+                          <th>Business Name:</th>
+                          <th>Address</th>
+                          <th>Zip Code</th>
+                          <th id="inspect">Inspection Date</th>
+                          <th>Score</th>
+                          <th>Rating</th>
+                          <th width="200px">Description</th>
+                          <th>Risk Category</th>
+                      </tr>
+                  </thead>
+                  <tbody></tbody>
+              </table>
+          </div>
+
         <div id="search-results">
-          <p  class="page-font">Business Name:<p id="business_name"></p></p>
-          <p  class="page-font">Business Address:<p id="business_address"></p>
-          <p  class="page-font">Business Zip Code:<p id="business_zip_code"></p>
-          <p  class="page-font">Inspection Date:<p id="inspection_date"></p>
-          <p  class="page-font">Inspection Score:<p id="inspection_score"></p>
-          <p  class="page-font">Violation Description:<p id="violation_description"></p>
-          <p  class="page-font">Risk Category:<p id="risk_category"></p>
+          <div class="error-result" style="display: none; color: red; font-size: 18px;">Restaurant not found. Please try again.</div>
+
+          <!--<p  class="page-font">Business Name: <span id="business_name"></span> </p>
+          <p  class="page-font">Business Address: <span id="business_address"></span> </p>
+          <p  class="page-font">Business Zip Code: <span id="business_zip_code"></span> </p>
+          <p  class="page-font">Inspection Date: <span id="inspection_date"></span> </p>
+          <p  class="page-font">Inspection Score: <span id="inspection_score"></span> </p>
+          <p  class="page-font">Rating: <span id="inspection_rating"></span> </p>
+          <p  class="page-font">Violation Description: <span id="violation_description"></span> </p>
+          <p  class="page-font">Risk Category: <span id="risk_category"></span> </p>-->
+
+          <div>
+              Current Location
+            <input type="text" class="clat" value="26.855704">
+            <input type="text" class="clng" value="75.789605">
+          </div>
+
+          
       </div>
-    
-      <div id="map"></div>
+
+      <div id="map_canvas" style="min-width:600px; min-height: 550px;"></div>
 
 
     </div>
+
+    <footer style="text-align: center; background-color: #fff; padding: 10px;">
+        Food Inspector © Copyright 2016
+    </footer>
     <div id="url-container" data-url="https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="></div>
 
+    <script>
+        function sortTable(f,n){
+            var rows = $('#mytable tbody  tr').get();
+
+            rows.sort(function(a, b) {
+                var A = getVal(a);
+                var B = getVal(b);
+
+                if(A < B) { return -1*f; }
+                if(A > B) { return 1*f; }
+                return 0;
+            });
+
+            function getVal(elm){
+                var v = $(elm).children('td').eq(n).text().toUpperCase();
+                if($.isNumeric(v)){
+                    v = parseInt(v,10);
+                }
+                return v;
+            }
+
+            $.each(rows, function(index, row) {
+                $('#mytable').children('tbody').append(row);
+            });
+        }
+        var f_sl = 1;
+        var f_nm = 1;
+        $("#inspect").click(function(){
+            f_sl *= -1;
+            var n = $(this).prevAll().length;
+            sortTable(f_sl,n);
+            $(this).css('color','#255884');
+        });
+        $("#srno").click(function(){
+            f_nm *= -1;
+            var n = $(this).prevAll().length;
+            sortTable(f_nm,n);
+        });
+    </script>
 
 
 	</body>

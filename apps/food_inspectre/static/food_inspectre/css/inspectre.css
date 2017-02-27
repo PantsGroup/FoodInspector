@@ -376,6 +376,7 @@ body{
 	font-family: 'Lato', ;verdana, arial, sans-serif;
 	font-weight: bold;
 }
+.page-font span{ font-weight: normal; }
 
 #top-banner{
 	height: 400px;

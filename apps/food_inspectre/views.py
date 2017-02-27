@@ -8,5 +8,5 @@ def index(request):
 
 def loadJSON(request):
 	if request.method == "POST":
-		print 'Raw Data: "%s"' % request.body
+		print('Raw Data: "%s"' % request.body)
 	return redirect('/')
