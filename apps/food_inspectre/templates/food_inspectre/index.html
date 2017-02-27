@@ -61,7 +61,7 @@
                     //Get User Address Details
                     var add_url = 'http://maps.googleapis.com/maps/api/geocode/json?latlng='+position.coords.latitude+','+position.coords.longitude+'&sensor=false';
                     $.get(add_url, function(client) {
-                        console.log(client.results[0]);
+                        console.log("user's current location: " + client.results[0].formatted_address);
 
                         //Save Client Data In Database
 
@@ -311,7 +311,7 @@
           <p  class="page-font">Risk Category: <span id="risk_category"></span> </p>-->
 
           <div>
-              Current Location
+              Your Current Location
             <input type="text" class="clat" value="26.855704">
             <input type="text" class="clng" value="75.789605">
           </div>
