@@ -52,6 +52,27 @@ body{
         margin-bottom: 40px;
  }
 
+.suggestions{
+	    position: absolute;
+	    width: 400px;
+	    background-color: #fff;
+	    border: 1px solid #ccc;
+	    display: none;
+}
+.suggestions ul{ 
+	list-style: none; margin: 0; 
+}
+.suggestions ul li{ 
+	padding: 5px; cursor: pointer; 
+}
+.suggestions ul li:hover{ 
+	background-color: #ccc; 
+}
+
+#inspect{ 
+	cursor: pointer; 
+}
+
 #top-section{
 	width: auto;
 	height: auto;
