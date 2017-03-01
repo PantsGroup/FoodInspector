@@ -25,7 +25,8 @@ SECRET_KEY = '^hous&+*qqz3l6@v@cwsu-k-2+m)4$c2p@(wlyyez))6$%kfn('
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 STATIC_ROOT = os.path.join(BASE_DIR, "static/")
-ALLOWED_HOSTS = ['foodinspector.tech']
+# ALLOWED_HOSTS = ['foodinspector.tech']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
