@@ -15,7 +15,7 @@
     <!--<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>-->
 
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
-    <!-- <style>
+    <style>
         .suggestions{
                 position: absolute;
                 width: 400px;
@@ -28,13 +28,19 @@
         .suggestions ul li:hover{ background-color: #ccc; }
 
         #inspect{ cursor: pointer; }
-    </style> -->
+    </style>
     <script type="text/javascript" src='http://code.jquery.com/jquery-1.10.2.min.js'></script>
 
     <!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZlatlx6HqjVqJFhy42kYRTOy_fjLO6gI"></script>-->
     <script type="text/javascript" src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
     <script>
         $(document).ready(function(){
+            $.get('http://ipinfo.io/json',function(result){
+                var country = result.country;
+                if(country=="IN"){ country= "India"; }
+                if(country=="US"){ country= "USA"; }
+                $(".caddress").html(result.city+", "+result.region+", "+country);
+            });
             // Get Current Location
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(showPosition);
@@ -45,16 +51,11 @@
                 $(".clat").val(position.coords.latitude);
                 $(".clng").val(position.coords.longitude);
 
-                // console.log(position.coords.latitude);
-                // console.log(position.coords.longitude);
                 //Get User Address Details
                 var add_url = 'http://maps.googleapis.com/maps/api/geocode/json?latlng='+$(".clat").val()+','+$(".clng").val()+'&sensor=false';
-                // console.log(add_url);
                 $.get(add_url, function(client) {
-                    // show the current address location
                     $(".caddress").html(client.results[0].formatted_address);
                 });
-
             }
         });
 
@@ -92,6 +93,7 @@
 
                     var markers = [];
                     var infoWindowContent = [];
+                    var j=0;
                     for (var i = 0; i < data.features.length; i++){
                         var inspection = data.features[i].properties.inspection_score;
                         var ficon = "happy.png";
@@ -112,25 +114,31 @@
                         if(inspection==null){ inspection= 'Not Available'; }
                         if(address==null){ address= 'Not Available'; }
                         if(zip==null){ zip= 'Not Available'; }
-                        if(inspection==null){ inspection= 'Not Available'; }
+                        if(idate==null){ idate= 'Not Available'; }
                         if(description==null){ description= 'Not Available'; }
                         if(risk==null){ risk= 'Not Available'; }
+                        if(mylat==null){ var location= 'Not Available'; }else{ var location='Available'; }
 
                         rest_result +='<tr><td>'+(i+1)+'</td>'+
                                     '<td>'+data.features[i].properties.business_name+'</td>'+
                                     '<td>'+address+'</td>'+
                                     '<td>'+zip+'</td>'+
+                                    '<td>'+location+'</td>'+
                                     '<td>'+idate.substr(0, 10)+'</td>'+
                                     '<td>'+inspection+'</td>'+
                                     '<td><img src="/static/food_inspectre/img/'+ficon+'" title="Score : '+inspection+'" ></td>'+
                                     '<td>'+description+'</td>'+
                                     '<td>'+risk+'</td></tr>';
-                    
-                        markers[i] = [name+', '+city, mylat,mylang];
-                        infoWindowContent[i] = ['<div class="info_content">' +'<h3>'+name+'</h3>' +
-                            '<div>City : '+city+'<br /> Address : '+address + '<br /> Postal Code : ' +
-                            zip +'<br /> Inspection Date : '+idate.substr(0, 10) + '<br /> The Latest Inspection Score : <img title="'+inspection+'" src="/static/food_inspectre/img/'+ficon+'"> <br /> Description : ' +
-                            description + '<br /> <a href="https://www.google.com/maps?q='+mylat+','+mylang+'&z=17&hl=en" target="_blank" > <img src="/static/food_inspectre/img/direction.png" style="margin-top:10px; width: 75px;"> </a> </div></div>']
+                        
+                        if (mylat!=null) {
+                            markers[j] = [name+', '+city, mylat,mylang];
+                            infoWindowContent[j] = ['<div class="info_content">' +'<h3>'+name+'</h3>' +
+                                '<div>City : '+city+'<br /> Address : '+address + '<br /> Postal Code : ' +
+                                zip +'<br /> Inspection Date : '+idate.substr(0, 10) + '<br /> The Latest Inspection Score : <img title="'+inspection+'" src="/static/food_inspectre/img/'+ficon+'"> <br /> Description : ' +
+                                description + '<br /> <a href="https://www.google.com/maps?q='+mylat+','+mylang+'&z=17&hl=en" target="_blank" > <img src="/static/food_inspectre/img/direction.png" style="margin-top:10px; width: 75px;"> </a> </div></div>']
+                            j++;
+                        }
+
                     }
                     $("table tbody").html(rest_result);
 
@@ -160,14 +168,30 @@
 
                     //Save Restaurant Data In Database
 
+                    var idate = data.features[0].properties.inspection_date;
+                    var name = data.features[0].properties.business_name;
+                    var address = data.features[0].properties.business_address;
+                    var city = data.features[0].properties.business_city;
+                    var zip = data.features[0].properties.business_postal_code;
+                    var description = data.features[0].properties.violation_description;
+                    var risk = data.features[0].properties.risk_category;
+                    var score = data.features[0].properties.inspection_score;
+
+                    if(idate==null){ idate= 'Not Available'; }
+                    if(address==null){ address= 'Not Available'; }
+                    if(zip==null){ zip= 0; }
+                    if(score==null){ score= 0; }
+                    if(description==null){ description= 'Not Available'; }
+                    if(risk==null){ risk= 'Not Available'; }
+
                     var sdata = JSON.stringify({
-                        "business_name": data.features[0].properties.business_name,
-                        "address": data.features[0].properties.business_address,
-                        "zip_code": data.features[0].properties.business_postal_code,
-                        "inspection_date": data.features[0].properties.inspection_date,
-                        "inspection_score": data.features[0].properties.inspection_score,
-                        "violation": data.features[0].properties.violation_description,
-                        "risk_category": data.features[0].properties.risk_category,
+                        "business_name": name,
+                        "address": address,
+                        "zip_code": zip,
+                        "inspection_date": idate,
+                        "inspection_score": score,
+                        "violation": description,
+                        "risk_category": risk,
                     });
 
                     $.ajax({
@@ -195,7 +219,7 @@
 
                  
         </script>
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZlatlx6HqjVqJFhy42kYRTOy_fjLO6gI&callback=initialize">
+        <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3qE3RuuHI3ThYaQQiNvRD3tlWapLRCzo&callback=initialize">
         </script>
 
         <script>
@@ -275,6 +299,7 @@
                           <th>Business Name:</th>
                           <th>Address</th>
                           <th>Zip Code</th>
+                          <th>Location</th>
                           <th id="inspect">Inspection Date</th>
                           <th>Score</th>
                           <th>Rating</th>
@@ -289,21 +314,12 @@
         <div id="search-results">
           <div class="error-result" style="display: none; color: red; font-size: 18px;">Restaurant not found. Please try again.</div>
 
-          <!--<p  class="page-font">Business Name: <span id="business_name"></span> </p>
-          <p  class="page-font">Business Address: <span id="business_address"></span> </p>
-          <p  class="page-font">Business Zip Code: <span id="business_zip_code"></span> </p>
-          <p  class="page-font">Inspection Date: <span id="inspection_date"></span> </p>
-          <p  class="page-font">Inspection Score: <span id="inspection_score"></span> </p>
-          <p  class="page-font">Rating: <span id="inspection_rating"></span> </p>
-          <p  class="page-font">Violation Description: <span id="violation_description"></span> </p>
-          <p  class="page-font">Risk Category: <span id="risk_category"></span> </p>-->
-
-<!--           <div>
+          <div>
             <b>Current Address : </b>
-            <input type="hidden" class="clat" value="26.855704">
-            <input type="hidden" class="clng" value="75.789605">
+            <input type="hidden" class="clat" value="">
+            <input type="hidden" class="clng" value="">
             <span class="caddress"></span>
-          </div> -->
+          </div>
 
           
       </div>
