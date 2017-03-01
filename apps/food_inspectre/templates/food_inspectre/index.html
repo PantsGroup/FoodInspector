@@ -151,6 +151,7 @@
                         marker = new google.maps.Marker({
                             position: position,
                             map: map,
+                            animation: google.maps.Animation.DROP,
                             title: markers[i][0]
                         });
                         
@@ -335,6 +336,7 @@
     <div id="url-container" data-url="https://data.sfgov.org/resource/sipz-fjte.geojson?business_name="></div>
 
     <script>
+
         function sortTable(f,n){
             var rows = $('#mytable tbody  tr').get();
 
