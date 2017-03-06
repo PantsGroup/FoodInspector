@@ -86,7 +86,8 @@
                         //alert("Restaurant not found. Please try again.");
                         return false;
                     }
-                    $(".error-result").hide();
+                    $(".error-result").hide(); 
+                    $("#map_canvas").show(); 
                     $("html, body").animate({ scrollTop: $(document).height()-$(window).height() });
 
                     var rest_result = "";
@@ -325,7 +326,9 @@
           
       </div>
 
-      <div id="map_canvas" style="min-width:600px; min-height: 550px;"></div>
+      <div id="map_canvas" style="min-width:600px; min-height: 550px; display:none; "></div>
+
+
 
 
     </div>
